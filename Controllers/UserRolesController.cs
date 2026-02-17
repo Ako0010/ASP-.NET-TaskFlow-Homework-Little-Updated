@@ -1,6 +1,7 @@
 ﻿using ASP_NET_16._TaskFlow_Resource_Based_Authorization.Common;
 using ASP_NET_16._TaskFlow_Resource_Based_Authorization.DTOs.Auth_DTOs;
 using ASP_NET_16._TaskFlow_Resource_Based_Authorization.Models;
+using Azure.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -80,6 +81,14 @@ public class UserRolesController : ControllerBase
             return BadRequest(ApiResponse<IList<string>>.ErrorResponse($"Failed to assign role {request.Role} to user {user.Id} User may already have this role."));
         }
 
+        var roleExists = await _roleManager.RoleExistsAsync(request.Role);
+
+            if (!roleExists)
+                 return BadRequest(ApiResponse<IList<string>>.ErrorResponse($"Role {request.Role} does not exist."));
+
+        if (await _userManager.IsInRoleAsync(user, request.Role))
+            return BadRequest(ApiResponse<IList<string>>.ErrorResponse($"User {user.Id} already has role {request.Role}."));
+
         var roles = await _userManager.GetRolesAsync(user);
 
         var userWithRoles = new UserWithRolesDto
@@ -101,6 +110,14 @@ public class UserRolesController : ControllerBase
             return NotFound(ApiResponse<IList<string>>.ErrorResponse($"User with ID {userId} not found"));
 
         var result = await _userManager.RemoveFromRoleAsync(user, roleName);
+
+        var roleExists = await _roleManager.RoleExistsAsync(roleName);
+
+        if (!roleExists)
+            return BadRequest(ApiResponse<IList<string>>.ErrorResponse($"Role {roleName} does not exist."));
+
+        if (!await _userManager.IsInRoleAsync(user, roleName))
+            return BadRequest(ApiResponse<IList<string>>.ErrorResponse($"User {user.Id} already has role {roleName}."));
 
         var roles = await _userManager.GetRolesAsync(user);
 
